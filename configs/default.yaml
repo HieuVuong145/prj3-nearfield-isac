@@ -1,0 +1,10 @@
+array: {N: 129, fc: 28.0e9, d_over_lambda: 0.5}
+signal: {T: 256, P: 1.0, waveform: iso, snr_db: 10}
+targets_region: {r_min: 3.0, r_max: 60.0, theta_deg: [30, 150]}
+grid:
+  music_mu: 0.95          # coherence between adjacent grid points (fine grid)
+  coarse_mu: 0.7          # coarse grid (hierarchical)
+  cs_mu: 0.5              # CS dictionary
+  u_oversample: 2         # u step = 2/(N*u_oversample)
+mc: {n_trials: 200, seed: 0, n_jobs: -1}
+

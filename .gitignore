@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Pytest / Coverage / Lint
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Results (per AGENT_SPEC §2)
+results/*.npz
+results/*.csv
+results/*.png
+!results/.gitkeep
+
+# macOS
+.DS_Store
+
