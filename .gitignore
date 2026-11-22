@@ -21,8 +21,14 @@ htmlcov/
 results/*.npz
 results/*.csv
 results/*.png
+results/*.json
+results/cache/
+results/figs/
 !results/.gitkeep
 
 # macOS
 .DS_Store
 
+
+# Report drafts (written separately, not versioned)
+report/
