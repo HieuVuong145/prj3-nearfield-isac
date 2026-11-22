@@ -146,3 +146,42 @@ def test_two_targets_eigenvalues_iso_vs_beam(default_cfg: ArrayCfg):
     assert eig_beam[0] > 10.0 * sigma2
     # Second eigenvalue is down at the noise floor
     assert eig_beam[1] < 3.0 * sigma2
+
+
+def test_orth_waveform_exact_covariance(default_cfg: ArrayCfg):
+    """kind='orth': X X^H / T = (P/N) I exactly; constant modulus; requires T >= N."""
+    rng = np.random.default_rng(0)
+    X = make_waveform(default_cfg, 256, P=2.0, kind="orth", rng=rng)
+    np.testing.assert_allclose(X @ X.conj().T / 256, 2.0 / default_cfg.N * np.eye(default_cfg.N), atol=1e-12)
+    np.testing.assert_allclose(np.abs(X), np.sqrt(2.0 / default_cfg.N))
+    with pytest.raises(ValueError):
+        make_waveform(default_cfg, 100, kind="orth", rng=rng)
+
+
+def test_streams_waveform_rank(default_cfg: ArrayCfg):
+    """kind='streams' with rho=0 has rank U; rho>0 makes it full rank."""
+    from nfisac.signal import sample_cov
+
+    rng = np.random.default_rng(1)
+    users = [(10.0, 1.2), (20.0, 1.7)]
+    Rx = sample_cov(make_waveform(default_cfg, 1000, kind="streams", users=users, rho=0.0, rng=rng))
+    ev = np.linalg.eigvalsh(Rx)[::-1]
+    assert ev[1] > 1e-3 and ev[2] < 1e-10 * ev[0]
+    Rx = sample_cov(make_waveform(default_cfg, 1000, kind="streams", users=users, rho=0.3, rng=rng))
+    assert np.linalg.matrix_rank(Rx) == default_cfg.N
+    assert abs(np.real(np.trace(Rx)) - 1.0) < 0.05
+
+
+def test_echo_mismatch_hooks_default_equivalence(default_cfg: ArrayCfg):
+    """Identity coupling and zero position error reproduce the nominal echo."""
+    from nfisac.signal import coupling_matrix
+
+    tg = [Target(r=12.0, theta=1.3, beta=0.5 + 0.2j)]
+    X = make_waveform(default_cfg, 64, rng=np.random.default_rng(2))
+    Y0 = simulate_echo(default_cfg, tg, X, 0.0)
+    Y1 = simulate_echo(default_cfg, tg, X, 0.0, coupling=coupling_matrix(default_cfg.N, 0.0, 0.0))
+    Y2 = simulate_echo(default_cfg, tg, X, 0.0, rng=np.random.default_rng(3), pos_err_std=0.0)
+    np.testing.assert_allclose(Y1, Y0, atol=1e-12)
+    np.testing.assert_allclose(Y2, Y0, atol=1e-12)
+    Y3 = simulate_echo(default_cfg, tg, X, 0.0, rng=np.random.default_rng(3), pos_err_std=1e-3)
+    assert np.linalg.norm(Y3 - Y0) > 1e-3 * np.linalg.norm(Y0)
