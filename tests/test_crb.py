@@ -204,3 +204,33 @@ def test_peb_coordinate_transformation(default_cfg: ArrayCfg):
     calculated_peb = peb(C_k, r, theta)
     assert abs(calculated_peb - expected_peb) < 1e-12
 
+
+
+def test_crb_uw_and_separation(default_cfg: ArrayCfg):
+    """crb_uw matches the delta method; separation bound equals e^T C e."""
+    from nfisac.crb import crb_separation, crb_uw
+
+    tg = [Target(10.0, 1.4, 1.0), Target(12.0, 1.45, np.exp(0.5j))]
+    res = crb(default_cfg, tg, np.eye(default_cfg.N) / default_cfg.N, 256, 0.1)
+    Cuw = crb_uw(res, tg)
+    # var(w_1) = var(r_1) / r_1^4 ; var(u_2) = sin^2(theta_2) var(theta_2)
+    assert np.isclose(Cuw[2, 2], res.C[0, 0] / 10.0**4)
+    assert np.isclose(Cuw[1, 1], np.sin(1.45) ** 2 * res.C[3, 3])
+    s = crb_separation(res, tg, coord="r")
+    assert np.isclose(s**2, res.C[0, 0] + res.C[1, 1] - 2 * res.C[0, 1])
+    s_w = crb_separation(res, tg, coord="w")
+    assert np.isclose(s_w**2, Cuw[2, 2] + Cuw[3, 3] - 2 * Cuw[2, 3])
+
+
+def test_crb_blockdiag_is_optimistic(default_cfg: ArrayCfg):
+    """Ignoring inter-target coupling can only lower the bound; the gap grows as targets close."""
+    from nfisac.crb import crb_blockdiag
+
+    ratios = []
+    for dr in (5.0, 1.0):
+        tg = [Target(10.0, np.pi / 2, 1.0), Target(10.0 + dr, np.pi / 2, np.exp(1j))]
+        res = crb(default_cfg, tg, np.eye(default_cfg.N) / default_cfg.N, 256, 0.1)
+        bd = crb_blockdiag(res, tg)
+        assert bd[0][0, 0] <= res.C[0, 0] * (1 + 1e-9)
+        ratios.append(res.C[0, 0] / bd[0][0, 0])
+    assert ratios[1] > ratios[0]

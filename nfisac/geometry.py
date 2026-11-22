@@ -12,6 +12,7 @@ def steering(
     theta: float | np.ndarray,
     mode: str = "exact",
     amplitude: bool = False,
+    positions: np.ndarray | None = None,
 ) -> np.ndarray:
     """Compute near-field / far-field steering vector(s).
 
@@ -30,6 +31,9 @@ def steering(
         - "far": Planar wave model (far-field, depends only on theta).
     amplitude : bool, default=False
         If True, applies distance-dependent path variation (r / r_n) across elements.
+    positions : np.ndarray or None, default=None
+        Optional actual element x-positions in meters, shape (N,). Used to model
+        antenna position errors; default is the nominal grid ``n * d``.
 
     Returns
     -------
@@ -37,7 +41,7 @@ def steering(
         Steering vector of shape (N,) if r and theta are scalar, or (N, K) if array-like.
         Dtype is complex128.
     """
-    is_scalar = np.isscalar(r) and np.isscalar(theta)
+    is_scalar = np.ndim(r) == 0 and np.ndim(theta) == 0
     r_arr = np.atleast_1d(np.asarray(r, dtype=np.float64))
     theta_arr = np.atleast_1d(np.asarray(theta, dtype=np.float64))
 
@@ -47,7 +51,8 @@ def steering(
         )
 
     # Broadcast shapes: n_d is (N, 1), r and angles are (1, K)
-    n_d = (cfg.n * cfg.d)[:, np.newaxis]
+    n_d = (cfg.n * cfg.d if positions is None else np.asarray(positions, dtype=np.float64))
+    n_d = n_d[:, np.newaxis]
     r_row = r_arr[np.newaxis, :]
     cos_theta = np.cos(theta_arr)[np.newaxis, :]
     sin_theta = np.sin(theta_arr)[np.newaxis, :]
@@ -101,7 +106,7 @@ def steering_grad(
         Each has shape (N,) if scalar inputs, or (N, K) if array inputs.
         All dtypes are complex128.
     """
-    is_scalar = np.isscalar(r) and np.isscalar(theta)
+    is_scalar = np.ndim(r) == 0 and np.ndim(theta) == 0
     r_arr = np.atleast_1d(np.asarray(r, dtype=np.float64))
     theta_arr = np.atleast_1d(np.asarray(theta, dtype=np.float64))
 
@@ -186,8 +191,21 @@ def check_fresnel_validity(cfg: ArrayCfg, r: float, theta: float) -> float:
     return float(np.max(phase_diff))
 
 
+def rt_to_uw(r: float | np.ndarray, theta: float | np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Map polar (r [m], theta [rad]) to normalized coordinates (u = cos(theta), w = 1/r [1/m])."""
+    return np.cos(np.asarray(theta, dtype=np.float64)), 1.0 / np.asarray(r, dtype=np.float64)
+
+
+def uw_to_rt(u: float | np.ndarray, w: float | np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Inverse of :func:`rt_to_uw`: returns (r [m], theta [rad])."""
+    u_arr = np.clip(np.asarray(u, dtype=np.float64), -1.0, 1.0)
+    return 1.0 / np.asarray(w, dtype=np.float64), np.arccos(u_arr)
+
+
 __all__ = [
     "ArrayCfg",
+    "rt_to_uw",
+    "uw_to_rt",
     "check_fresnel_validity",
     "coherence",
     "steering",

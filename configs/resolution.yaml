@@ -1,0 +1,6 @@
+# Configuration for the resolution experiments (DECISIONS #5)
+array: {N: 257, fc: 28.0e9, d_over_lambda: 0.5}
+signal: {T: 512, P: 1.0, waveform: orth, snr_db: 0}
+targets_region: {r_min: 3.0, r_max: 60.0, theta_deg: [30, 150]}
+grid: {cs_mu: 0.5, coarse_mu: 0.7, ov_u: 8, ov_w: 8, mu_cell: 0.5}
+mc: {n_trials: 200, seed: 0, n_jobs: -1}

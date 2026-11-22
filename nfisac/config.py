@@ -152,15 +152,25 @@ class GridCfg:
     cs_mu : float, default=0.5
         Coherence bound for compressive sensing dictionary.
     u_oversample : int, default=2
-        Oversampling factor for angle grid u = cos(theta).
+        Oversampling factor for angle grid u = cos(theta) (legacy, coarse stage).
+    ov_u, ov_w : float, default=8
+        Oversampling per resolution cell of the fine (B1) grid (DECISIONS #4).
+    mu_cell : float, default=0.5
+        Coherence level defining a resolution cell in w (see nfisac.grids.cell_w).
     """
 
     music_mu: float = 0.95
     coarse_mu: float = 0.7
     cs_mu: float = 0.5
     u_oversample: int = 2
+    ov_u: float = 8.0
+    ov_w: float = 8.0
+    mu_cell: float = 0.5
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "ov_u", float(self.ov_u))
+        object.__setattr__(self, "ov_w", float(self.ov_w))
+        object.__setattr__(self, "mu_cell", float(self.mu_cell))
         object.__setattr__(self, "music_mu", float(self.music_mu))
         object.__setattr__(self, "coarse_mu", float(self.coarse_mu))
         object.__setattr__(self, "cs_mu", float(self.cs_mu))
