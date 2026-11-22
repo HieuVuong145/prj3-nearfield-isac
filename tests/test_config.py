@@ -98,6 +98,9 @@ def test_load_default_config():
     assert pcfg.grid.coarse_mu == 0.7
     assert pcfg.grid.cs_mu == 0.5
     assert pcfg.grid.u_oversample == 2
+    assert pcfg.grid.ov_u == 8.0
+    assert pcfg.grid.ov_w == 8.0
+    assert pcfg.grid.mu_cell == 0.5
 
     # Check mc section
     assert pcfg.mc.n_trials == 200
