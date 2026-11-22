@@ -246,9 +246,83 @@ def crb(
     )
 
 
+def crb_uw(res: CrbResult, targets: list[Target]) -> np.ndarray:
+    """Transform the (r, theta) block of the CRB to normalized coordinates (u, w).
+
+    u = cos(theta), w = 1/r.  The delta method gives C_uw = G C_rt G^T with
+    G = blockdiag(dw/dr = -1/r^2, du/dtheta = -sin(theta)).
+
+    Returns
+    -------
+    np.ndarray
+        Covariance bound of shape (2K, 2K) ordered [u_1..u_K, w_1..w_K].
+    """
+    K = len(targets)
+    C_rt = res.C[: 2 * K, : 2 * K]  # ordered [r_1..r_K, theta_1..theta_K]
+    r = np.array([t.r for t in targets])
+    th = np.array([t.theta for t in targets])
+    G = np.zeros((2 * K, 2 * K))
+    G[np.arange(K), K + np.arange(K)] = -np.sin(th)  # u_k <- theta_k
+    G[K + np.arange(K), np.arange(K)] = -1.0 / r**2  # w_k <- r_k
+    return G @ C_rt @ G.T
+
+
+def crb_separation(
+    res: CrbResult, targets: list[Target], i: int = 0, j: int = 1, coord: str = "w"
+) -> float:
+    """Standard-deviation bound of the separation delta = p_j - p_i between two targets.
+
+    Used for the statistical resolution limit (SRL): the pair is (statistically)
+    resolvable when |delta| >= sqrt(CRB_delta)  (Smith 2005; El Korso et al. 2012).
+
+    Parameters
+    ----------
+    coord : {"r", "theta", "u", "w"}
+        Coordinate in which the separation is measured (theta in rad, w in 1/m).
+    """
+    K = len(targets)
+    if coord in ("r", "theta"):
+        C = res.C[: 2 * K, : 2 * K]
+        off = 0 if coord == "r" else K
+    elif coord in ("u", "w"):
+        C = crb_uw(res, targets)
+        off = 0 if coord == "u" else K
+    else:
+        raise ValueError(f"Unknown coord {coord!r}")
+    e = np.zeros(2 * K)
+    e[off + j] = 1.0
+    e[off + i] = -1.0
+    return float(np.sqrt(max(0.0, e @ C @ e)))
+
+
+def crb_blockdiag(res: CrbResult, targets: list[Target]) -> list[np.ndarray]:
+    """CRB obtained by ignoring inter-target coupling (block-diagonal FIM).
+
+    For each target k, keeps only the 4x4 FIM block of (r_k, theta_k, Re b_k, Im b_k)
+    and inverts it.  Comparing with the full CRB quantifies inter-target coupling;
+    the approximation is only valid when |a_i^H a_j| / N -> 0.
+
+    Returns
+    -------
+    list of np.ndarray
+        One (2, 2) covariance bound per target for (r_k, theta_k).
+    """
+    K = len(targets)
+    out = []
+    for k in range(K):
+        idx = [k, K + k, 2 * K + k, 3 * K + k]
+        Jk = res.J[np.ix_(idx, idx)]
+        Ck = np.linalg.pinv(Jk, hermitian=True)
+        out.append(Ck[:2, :2])
+    return out
+
+
 __all__ = [
     "CrbResult",
     "crb",
+    "crb_blockdiag",
+    "crb_separation",
+    "crb_uw",
     "fim",
     "peb",
 ]
